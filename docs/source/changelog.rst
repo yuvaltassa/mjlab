@@ -5,6 +5,21 @@ Changelog
 Upcoming version (not yet released)
 -----------------------------------
 
+Added
+^^^^^
+
+- Classic MuJoCo (C engine, CPU) simulation backend, selectable with
+  ``SimulationCfg(backend="classic")``. It steps the environments with
+  `mjbatch <https://github.com/kevinzakka/mjbatch>`_ (a C++ thread pool over the
+  classic engine, memory scaling with threads rather than environments) while
+  exposing the same batched torch-tensor bridges as the Warp backend, so tasks,
+  managers, sensors and domain randomization run unchanged. Results are bit-identical
+  to a serial ``mj_step`` loop. On CPU it is typically several times faster than
+  Warp (an order of magnitude for humanoid-scale models) and supports every classic
+  integrator (``rk4``, ``implicit``, and newer integrators not yet ported to Warp).
+  Camera/raycast sensors, mesh variants, sleep-enabled models, and the
+  differential-IK action remain Warp-only.
+
 Changed
 ^^^^^^^
 

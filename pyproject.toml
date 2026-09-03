@@ -50,6 +50,7 @@ dependencies = [
   "tensorboard>=2.20.0",
   "onnxscript>=0.5.4",
   "wandb>=0.22.3,<0.29",
+  "mjbatch",
 ]
 
 [project.urls]
@@ -131,6 +132,7 @@ torch = [
   { index = "pytorch-cu128", extra = "cu128", marker = "sys_platform != 'darwin'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "sys_platform != 'darwin'" },
 ]
+mjbatch = { git = "https://github.com/kevinzakka/mjbatch", rev = "v0.1.0" }
 
 [tool.ruff]
 src = ["src"]  # Helpful for recognizing first-party imports.
