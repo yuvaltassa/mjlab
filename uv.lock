@@ -1650,12 +1650,24 @@ wheels = [
 ]
 
 [[package]]
+name = "mjbatch"
+version = "0.1.0"
+source = { git = "https://github.com/kevinzakka/mjbatch?rev=v0.1.0#5032f93ad92b919927709a12689a9fd9e7898f3c" }
+dependencies = [
+    { name = "mujoco" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-5-mjlab-cpu' and extra == 'extra-5-mjlab-cu128')" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.11.*' or (extra == 'extra-5-mjlab-cpu' and extra == 'extra-5-mjlab-cu128')" },
+    { name = "numpy", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12' or (extra == 'extra-5-mjlab-cpu' and extra == 'extra-5-mjlab-cu128')" },
+]
+
+[[package]]
 name = "mjlab"
 version = "1.6.0"
 source = { editable = "." }
 dependencies = [
     { name = "imageio-ffmpeg" },
     { name = "mediapy" },
+    { name = "mjbatch" },
     { name = "mjviser" },
     { name = "mujoco" },
     { name = "mujoco-warp" },
@@ -1725,6 +1737,7 @@ docs = [
 requires-dist = [
     { name = "imageio-ffmpeg" },
     { name = "mediapy", specifier = ">=1.2.7" },
+    { name = "mjbatch", git = "https://github.com/kevinzakka/mjbatch?rev=v0.1.0" },
     { name = "mjviser", specifier = ">=0.0.14" },
     { name = "mujoco", specifier = "~=3.11.0" },
     { name = "mujoco-warp", specifier = "~=3.11.0" },

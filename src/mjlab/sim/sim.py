@@ -62,7 +62,16 @@ _CONE_MAP = {
 _INTEGRATOR_MAP = {
   "euler": mujoco.mjtIntegrator.mjINT_EULER,
   "implicitfast": mujoco.mjtIntegrator.mjINT_IMPLICITFAST,
+  "rk4": mujoco.mjtIntegrator.mjINT_RK4,
+  "implicit": mujoco.mjtIntegrator.mjINT_IMPLICIT,
 }
+# Integrators only available on some MuJoCo versions.
+for _name in ("discrete",):
+  _enum = getattr(mujoco.mjtIntegrator, f"mjINT_{_name.upper()}", None)
+  if _enum is not None:
+    _INTEGRATOR_MAP[_name] = _enum
+# Integrators implemented by MuJoCo Warp (the classic backend supports all).
+_WARP_INTEGRATORS = ("euler", "implicitfast")
 _SOLVER_MAP = {
   "newton": mujoco.mjtSolver.mjSOL_NEWTON,
   "cg": mujoco.mjtSolver.mjSOL_CG,
@@ -100,7 +109,12 @@ class MujocoCfg:
 
   # Integrator settings.
   timestep: float = 0.002
-  integrator: Literal["euler", "implicitfast"] = "implicitfast"
+  integrator: Literal["euler", "implicitfast", "rk4", "implicit", "discrete"] = (
+    "implicitfast"
+  )
+  """Numerical integrator. MuJoCo Warp implements ``euler`` and ``implicitfast``;
+  the remaining integrators require ``backend="classic"`` (and ``discrete``
+  additionally requires a MuJoCo version that provides it)."""
 
   # Friction settings.
   impratio: float = 1.0
@@ -126,6 +140,11 @@ class MujocoCfg:
 
   def apply(self, model: mujoco.MjModel) -> None:
     """Apply configuration settings to a compiled MjModel."""
+    if self.integrator not in _INTEGRATOR_MAP:
+      raise ValueError(
+        f"Integrator '{self.integrator}' is not available in MuJoCo "
+        f"{mujoco.__version__}. Available: {sorted(_INTEGRATOR_MAP)}"
+      )
     model.opt.jacobian = _JACOBIAN_MAP[self.jacobian]
     model.opt.cone = _CONE_MAP[self.cone]
     model.opt.integrator = _INTEGRATOR_MAP[self.integrator]
@@ -154,6 +173,20 @@ class MujocoCfg:
 
 @dataclass(kw_only=True)
 class SimulationCfg:
+  backend: Literal["warp", "classic"] = "warp"
+  """Physics backend.
+
+  ``"warp"`` (default) batches all environments in MuJoCo Warp kernels on the
+  torch device. ``"classic"`` steps per-environment ``mujoco.MjData`` with the
+  classic C engine on CPU threads; it requires ``device="cpu"``, supports every
+  classic integrator/solver, and is typically much faster than Warp on CPU. See
+  :class:`mjlab.sim.classic.ClassicSimulation` for its limitations
+  (no camera/raycast sensors, no mesh variants)."""
+  num_threads: int | None = None
+  """Classic backend only: threads in mjbatch's pool.
+
+  ``None`` (or ``0``) uses every logical CPU, mjbatch's default; a second thread per
+  core measures faster for MuJoCo's latency-bound linear algebra."""
   nconmax: int | None = None
   """Number of contacts to allocate per world.
 
@@ -228,6 +261,11 @@ class Simulation:
     spec: mujoco.MjSpec | None = None,
     variant_info: list[tuple[str, VariantMetadata]] | None = None,
   ):
+    if cfg.mujoco.integrator not in _WARP_INTEGRATORS:
+      raise ValueError(
+        f"Integrator '{cfg.mujoco.integrator}' is not implemented by MuJoCo "
+        f"Warp (available: {_WARP_INTEGRATORS}). Use sim.backend='classic'."
+      )
     self.cfg = cfg
     self.device = device
     self.wp_device = wp.get_device(self.device)
@@ -579,3 +617,42 @@ class Simulation:
       reasons.append(f"driver {driver_ver[0]}.{driver_ver[1]} < 12.4")
     print(f"[WARNING] CUDA Graphs disabled: {', '.join(reasons)}")
     return False
+
+
+def make_simulation(
+  num_envs: int,
+  cfg: SimulationCfg,
+  model: mujoco.MjModel | None = None,
+  device: str = "cuda:0",
+  *,
+  spec: mujoco.MjSpec | None = None,
+  variant_info: list[tuple[str, "VariantMetadata"]] | None = None,
+) -> "Simulation":
+  """Construct the simulation backend selected by ``cfg.backend``.
+
+  Returns a :class:`Simulation` (Warp) or a
+  :class:`mjlab.sim.classic.ClassicSimulation`; the two expose the same
+  interface, so the return value is typed as ``Simulation``.
+  """
+  if cfg.backend == "classic":
+    from mjlab.sim.classic import ClassicSimulation
+
+    return cast(
+      Simulation,
+      ClassicSimulation(
+        num_envs=num_envs,
+        cfg=cfg,
+        model=model,
+        device=device,
+        spec=spec,
+        variant_info=variant_info,
+      ),
+    )
+  return Simulation(
+    num_envs=num_envs,
+    cfg=cfg,
+    model=model,
+    device=device,
+    spec=spec,
+    variant_info=variant_info,
+  )

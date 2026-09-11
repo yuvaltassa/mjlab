@@ -38,7 +38,7 @@ from mjlab.managers.termination_manager import TerminationManager, TerminationTe
 from mjlab.scene import Scene
 from mjlab.scene.scene import SceneCfg
 from mjlab.sim import SimulationCfg
-from mjlab.sim.sim import Simulation
+from mjlab.sim.sim import make_simulation
 from mjlab.utils import random as random_utils
 from mjlab.utils.logging import print_info
 from mjlab.utils.spaces import Box
@@ -196,7 +196,7 @@ class ManagerBasedRlEnv:
 
     # Initialize scene and simulation.
     self.scene = Scene(self.cfg.scene, device=device)
-    self.sim = Simulation(
+    self.sim = make_simulation(
       num_envs=self.scene.num_envs,
       cfg=self.cfg.sim,
       spec=self.scene.spec,
